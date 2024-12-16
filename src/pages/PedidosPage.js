@@ -75,21 +75,23 @@ const PedidosPage = () => {
       notify("Por favor, completa los campos de comentarios y recibido por.", "error");
       return;
     }
-
+  
     try {
       const updatedPedido = { estado: "Recibido", comentarios, recibidoPor };
       const { data } = await updatePedidoStatus(id, updatedPedido);
-
+  
       setPedidosPendientes(pedidosPendientes.filter((pedido) => pedido._id !== id));
       setPedidosRecibidos([...pedidosRecibidos, data]);
-
+  
       notify("Pedido marcado como recibido.", "success");
-      setComentarios("");
-      setRecibidoPor("");
+      setComentarios(""); // Limpiar el campo
+      setRecibidoPor(""); // Limpiar el campo
     } catch (error) {
+      console.error(error);
       notify("Error al marcar el pedido como recibido.", "error");
     }
   };
+  
 
   return (
     <div className="p-4 bg-gray-100 min-h-screen">
