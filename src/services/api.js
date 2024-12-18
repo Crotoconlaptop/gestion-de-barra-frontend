@@ -1,7 +1,7 @@
 import axios from "axios";
 
-//const API = axios.create({ baseURL: "http://localhost:5000/api" });
-const API = axios.create({ baseURL: "https://gestion-de-barra-backend.onrender.com/api" });
+const API = axios.create({ baseURL: "http://localhost:5000/api" });
+//const API = axios.create({ baseURL: "https://gestion-de-barra-backend.onrender.com/api" });
 
 
 export const fetchPedidos = () => API.get("/pedidos");
@@ -12,7 +12,8 @@ export const deletePedido = (id) => API.delete(`/pedidos/${id}`);
 // Premixes
 export const fetchPremixes = () => API.get("/premixes");
 export const createPremix = (premix) => API.post("/premixes", premix);
-export const updatePremix = (id, premix) => API.patch(`/premixes/${id}`, premix);
+export const cambiarEstadoPremix = (id, pendiente) =>
+  API.patch(`/premixes/${id}/estado`, { pendiente });
 export const deletePremix = (id) => API.delete(`/premixes/${id}`);
 
 // Tragos
