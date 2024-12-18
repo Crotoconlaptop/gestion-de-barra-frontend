@@ -6,11 +6,11 @@ const Navbar = () => {
     <nav className="bg-gray-800 p-4 fixed bottom-0 inset-x-0 flex justify-around text-gray-200 shadow-lg">
       <Link to="/" className="text-center hover:text-cyan-400 transition duration-300">
         <p>🏠</p>
-        <span>Inicio</span>
+        <span>Home</span>
       </Link>
       <Link to="/tragos" className="text-center hover:text-green-400 transition duration-300">
         <p>🍹</p>
-        <span>Tragos</span>
+        <span>Drinks</span>
       </Link>
       <Link to="/premixes" className="text-center hover:text-yellow-400 transition duration-300">
         <p>🧪</p>
@@ -18,7 +18,7 @@ const Navbar = () => {
       </Link>
       <Link to="/pedidos" className="text-center hover:text-red-400 transition duration-300">
         <p>📋</p>
-        <span>Pedidos</span>
+        <span>Orders</span>
       </Link>
     </nav>
   );
