@@ -1,7 +1,8 @@
 import axios from "axios";
 
 //const API = axios.create({ baseURL: "http://localhost:5000/api" });
-const API = axios.create({ baseURL: "https://gestion-de-barra-backend.onrender.com/api" });
+//const API = axios.create({ baseURL: "https://gestion-de-barra-backend.onrender.com/api" });
+const API = axios.create({ baseURL: "https://gestion-de-barra-backend.vercel.app" });
 
 
 export const fetchPedidos = () => API.get("/pedidos");
