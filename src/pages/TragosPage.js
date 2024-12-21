@@ -19,6 +19,7 @@ const TragosPage = () => {
         const { data } = await fetchTragos();
         setTragos(data);
       } catch (error) {
+        console.error("Error fetching drinks:", error.message);
         notify("Error loading drinks.", "error");
       }
     };
@@ -55,7 +56,7 @@ const TragosPage = () => {
         };
 
         const { data } = await createTrago(drinkData);
-        setTragos([...tragos, data]);
+        setTragos((prevTragos) => [...prevTragos, data]);
         setNuevoTrago({ nombre: "", ingredientes: "", preparacion: "" });
         setImagenArchivo(null);
         notify("Drink added successfully.", "success");
@@ -63,6 +64,7 @@ const TragosPage = () => {
 
       reader.readAsDataURL(imagenArchivo);
     } catch (error) {
+      console.error("Error adding drink:", error.message);
       notify("Error adding the drink.", "error");
     }
   };
@@ -72,9 +74,10 @@ const TragosPage = () => {
 
     try {
       await deleteTrago(id);
-      setTragos(tragos.filter((drink) => drink._id !== id));
+      setTragos((prevTragos) => prevTragos.filter((drink) => drink._id !== id));
       notify("Drink deleted successfully.", "success");
     } catch (error) {
+      console.error("Error deleting drink:", error.message);
       notify("Error deleting the drink.", "error");
     }
   };

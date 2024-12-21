@@ -18,15 +18,18 @@ const HomePage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const productosResponse = await fetchProductos86();
+        const [productosResponse, premixesResponse, pedidosResponse] = await Promise.all([
+          fetchProductos86(),
+          fetchPremixes(),
+          fetchPedidos(),
+        ]);
+
         setProductosFaltantes(productosResponse.data);
 
-        const premixesResponse = await fetchPremixes();
         setPremixesPendientes(
           premixesResponse.data.filter((premix) => premix.pendiente)
         );
 
-        const pedidosResponse = await fetchPedidos();
         setPedidos(
           pedidosResponse.data.map((pedido) => ({
             ...pedido,
@@ -34,7 +37,7 @@ const HomePage = () => {
           }))
         );
       } catch (error) {
-        console.error("Error fetching data: ", error.message);
+        console.error("Error fetching data:", error.message);
         notify("Error loading initial data.", "error");
       }
     };
@@ -54,31 +57,33 @@ const HomePage = () => {
         cantidad: 1,
         tipo: "unidad",
       });
-      setProductosFaltantes([...productosFaltantes, data]);
+      setProductosFaltantes((prev) => [...prev, data]);
       setNuevoProducto("");
       notify("Product added to missing list.", "success");
     } catch (error) {
       notify("Error adding missing product.", "error");
-      console.error(error.message);
+      console.error("Error adding product:", error.message);
     }
   };
 
   const handleEliminarProducto86 = async (id) => {
     try {
       await deleteProducto86(id);
-      setProductosFaltantes(
-        productosFaltantes.filter((producto) => producto._id !== id)
+      setProductosFaltantes((prev) =>
+        prev.filter((producto) => producto._id !== id)
       );
       notify("Product removed from missing list.", "success");
     } catch (error) {
       notify("Error removing missing product.", "error");
-      console.error(error.message);
+      console.error("Error deleting product:", error.message);
     }
   };
 
   return (
     <div className="p-4 bg-gray-900 text-gray-200 min-h-screen">
-      <h1 className="text-3xl font-bold text-center mb-6 text-cyan-400">Bar Management</h1>
+      <h1 className="text-3xl font-bold text-center mb-6 text-cyan-400">
+        Bar Management
+      </h1>
 
       {/* Missing Products */}
       <div className="bg-gray-800 p-4 rounded-lg shadow-md mb-6">
@@ -143,14 +148,19 @@ const HomePage = () => {
           {pedidos.length > 0 ? (
             pedidos.map((pedido) => (
               <li key={pedido._id} className="text-gray-200">
-                <strong>{pedido.descripcion}</strong> - {pedido.estado === "Recibido" ? "Received" : pedido.estado}
+                <strong>{pedido.descripcion}</strong> - {" "}
+                {pedido.estado === "Recibido" ? "Received" : pedido.estado}
                 {pedido.estado === "Recibido" && (
                   <>
                     {pedido.comentarios && (
-                      <p className="mt-1 italic text-gray-400">Comment: {pedido.comentarios}</p>
+                      <p className="mt-1 italic text-gray-400">
+                        Comment: {pedido.comentarios}
+                      </p>
                     )}
                     {pedido.recibidoPor && (
-                      <p className="italic text-gray-400">Received by: {pedido.recibidoPor}</p>
+                      <p className="italic text-gray-400">
+                        Received by: {pedido.recibidoPor}
+                      </p>
                     )}
                   </>
                 )}

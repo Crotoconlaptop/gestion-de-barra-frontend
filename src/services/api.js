@@ -1,10 +1,20 @@
 import axios from "axios";
 
-//const API = axios.create({ baseURL: "http://localhost:5000/api" });
-//const API = axios.create({ baseURL: "https://gestion-de-barra-backend.onrender.com/api" });
-const API = axios.create({ baseURL: "https://gestion-de-barra-backend.vercel.app" });
+// Configurar Axios con una base dinámica para permitir desarrollo y producción
+const API = axios.create({
+  baseURL: process.env.REACT_APP_API_URL || "http://localhost:5000/api",
+});
 
+// Interceptor para manejar errores globales
+API.interceptors.response.use(
+  (response) => response, // Si la respuesta es exitosa, devolverla
+  (error) => {
+    console.error("Error en la API:", error.message || "Error desconocido");
+    return Promise.reject(error); // Rechazar para que los componentes manejen el error si es necesario
+  }
+);
 
+// Pedidos
 export const fetchPedidos = () => API.get("/pedidos");
 export const createPedido = (pedido) => API.post("/pedidos", pedido);
 export const updatePedidoStatus = (id, status) => API.patch(`/pedidos/${id}`, status);

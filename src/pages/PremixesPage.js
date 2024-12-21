@@ -14,7 +14,6 @@ const PremixesPage = () => {
   const [imagenArchivo, setImagenArchivo] = useState(null);
   const { notify } = useNotification();
 
-  // Load premixes on page load
   useEffect(() => {
     const loadPremixes = async () => {
       try {
@@ -24,75 +23,73 @@ const PremixesPage = () => {
         notify("Error loading premixes.", "error");
       }
     };
-
     loadPremixes();
   }, [notify]);
 
-  // Handle adding a new premix
-  const handleAddPremix = async () => {
-    if (!nuevoPremix.nombre || !nuevoPremix.descripcion || !nuevoPremix.preparacion || !nuevoPremix.ingredientes || !imagenArchivo) {
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setNuevoPremix((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const validatePremixData = () => {
+    const { nombre, descripcion, ingredientes, preparacion } = nuevoPremix;
+    if (!nombre || !descripcion || !preparacion || !ingredientes || !imagenArchivo) {
       notify("All fields, including the image, are required.", "error");
-      return;
+      return false;
     }
+    return true;
+  };
+
+  const handleAddPremix = async () => {
+    if (!validatePremixData()) return;
 
     try {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64Image = reader.result;
-
         const ingredientsArray = nuevoPremix.ingredientes
           .split(",")
           .map((ing) => ing.trim())
-          .filter((ing) => ing.length > 0);
+          .filter((ing) => ing);
 
         const premixData = {
-          nombre: nuevoPremix.nombre,
-          descripcion: nuevoPremix.descripcion,
+          ...nuevoPremix,
           ingredientes: ingredientsArray,
-          preparacion: nuevoPremix.preparacion,
           imagen: base64Image,
           pendiente: false,
         };
 
-        console.log("Data sent to the backend:", premixData);
-
         const { data } = await createPremix(premixData);
-        setPremixes([...premixes, data]);
+        setPremixes((prev) => [...prev, data]);
         setNuevoPremix({ nombre: "", descripcion: "", ingredientes: "", preparacion: "", imagen: "" });
         setImagenArchivo(null);
         notify("Premix added successfully.", "success");
       };
-
       reader.readAsDataURL(imagenArchivo);
     } catch (error) {
-      console.error("Error adding the premix:", error.message);
       notify("Error adding the premix.", "error");
     }
   };
 
-  // Handle marking pending or done
   const handleTogglePending = async (id, isPending) => {
     try {
       const newState = !isPending;
-      const { data } = await cambiarEstadoPremix(id, newState); // Send the new state to the backend
-      setPremixes(premixes.map((premix) => (premix._id === id ? data : premix)));
+      const { data } = await cambiarEstadoPremix(id, newState);
+      setPremixes((prev) => prev.map((premix) => (premix._id === id ? data : premix)));
       notify(`Premix marked as ${newState ? "pending" : "ready"}.`, "success");
     } catch (error) {
-      console.error("Error changing the premix state:", error.message);
       notify("Error changing the premix state.", "error");
     }
   };
 
-  // Handle deleting a premix
   const handleDeletePremix = async (id) => {
     if (!window.confirm("Are you sure you want to delete this premix?")) return;
 
     try {
       await deletePremix(id);
-      setPremixes(premixes.filter((premix) => premix._id !== id));
+      setPremixes((prev) => prev.filter((premix) => premix._id !== id));
       notify("Premix deleted successfully.", "success");
     } catch (error) {
-      console.error("Error deleting the premix:", error.message);
       notify("Error deleting the premix.", "error");
     }
   };
@@ -101,33 +98,36 @@ const PremixesPage = () => {
     <div className="p-4 bg-gray-900 min-h-screen text-gray-200">
       <h1 className="text-3xl font-bold text-center mb-6 text-cyan-400">Premix Management</h1>
 
-      {/* Form to add a new premix */}
       <div className="bg-gray-800 p-4 rounded-lg shadow-lg mb-6">
         <h2 className="text-xl font-bold text-cyan-400 mb-4">Add New Premix</h2>
         <input
           type="text"
+          name="nombre"
           placeholder="Premix name"
           value={nuevoPremix.nombre}
-          onChange={(e) => setNuevoPremix({ ...nuevoPremix, nombre: e.target.value })}
+          onChange={handleInputChange}
           className="w-full bg-gray-700 text-gray-200 p-2 rounded mb-2"
         />
         <textarea
+          name="descripcion"
           placeholder="Description"
           value={nuevoPremix.descripcion}
-          onChange={(e) => setNuevoPremix({ ...nuevoPremix, descripcion: e.target.value })}
+          onChange={handleInputChange}
           className="w-full bg-gray-700 text-gray-200 p-2 rounded mb-2"
         />
         <textarea
+          name="preparacion"
           placeholder="Preparation"
           value={nuevoPremix.preparacion}
-          onChange={(e) => setNuevoPremix({ ...nuevoPremix, preparacion: e.target.value })}
+          onChange={handleInputChange}
           className="w-full bg-gray-700 text-gray-200 p-2 rounded mb-2"
         />
         <input
           type="text"
+          name="ingredientes"
           placeholder="Ingredients (comma separated)"
           value={nuevoPremix.ingredientes}
-          onChange={(e) => setNuevoPremix({ ...nuevoPremix, ingredientes: e.target.value })}
+          onChange={handleInputChange}
           className="w-full bg-gray-700 text-gray-200 p-2 rounded mb-2"
         />
         <input
@@ -144,7 +144,6 @@ const PremixesPage = () => {
         </button>
       </div>
 
-      {/* List of premixes */}
       <ul className="space-y-4">
         {premixes.map((premix) => (
           <li key={premix._id} className="bg-gray-800 p-4 rounded-lg shadow-md">

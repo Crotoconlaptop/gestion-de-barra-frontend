@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNotification } from "../hooks/useNotification";
 import { fetchPedidos, createPedido, updatePedidoStatus, deletePedido } from "../services/api";
 
@@ -9,22 +9,22 @@ const PedidosPage = () => {
   const [nuevoProducto, setNuevoProducto] = useState({ nombre: "", cantidad: "", tipo: "" });
   const [comentarios, setComentarios] = useState("");
   const [recibidoPor, setRecibidoPor] = useState("");
-
   const { notify } = useNotification();
 
-  useEffect(() => {
-    const cargarPedidos = async () => {
-      try {
-        const { data } = await fetchPedidos();
-        setPedidosPendientes(data.filter((pedido) => pedido.estado === "Pendiente"));
-        setPedidosRecibidos(data.filter((pedido) => pedido.estado === "Recibido"));
-      } catch (error) {
-        notify("Error al cargar pedidos del backend.", "error");
-      }
-    };
-
-    cargarPedidos();
+  // Fetch pedidos
+  const cargarPedidos = useCallback(async () => {
+    try {
+      const { data } = await fetchPedidos();
+      setPedidosPendientes(data.filter((pedido) => pedido.estado === "Pendiente"));
+      setPedidosRecibidos(data.filter((pedido) => pedido.estado === "Recibido"));
+    } catch (error) {
+      notify("Error al cargar pedidos del backend.", "error");
+    }
   }, [notify]);
+
+  useEffect(() => {
+    cargarPedidos();
+  }, [cargarPedidos]);
 
   const handleAgregarProducto = () => {
     if (!nuevoProducto.nombre || !nuevoProducto.cantidad || !nuevoProducto.tipo) {
@@ -32,10 +32,10 @@ const PedidosPage = () => {
       return;
     }
 
-    setNuevoPedido({
-      ...nuevoPedido,
-      productos: [...nuevoPedido.productos, { ...nuevoProducto }],
-    });
+    setNuevoPedido((prev) => ({
+      ...prev,
+      productos: [...prev.productos, { ...nuevoProducto }],
+    }));
 
     setNuevoProducto({ nombre: "", cantidad: "", tipo: "" });
     notify("Producto agregado al pedido.", "success");
@@ -49,7 +49,7 @@ const PedidosPage = () => {
 
     try {
       const { data } = await createPedido(nuevoPedido);
-      setPedidosPendientes([...pedidosPendientes, data]);
+      setPedidosPendientes((prev) => [...prev, data]);
       setNuevoPedido({ productos: [] });
       notify("Pedido creado con éxito.", "success");
     } catch (error) {
@@ -58,15 +58,15 @@ const PedidosPage = () => {
   };
 
   const handleEliminarPedido = async (id) => {
-    if (window.confirm("¿Estás seguro de que deseas eliminar este pedido?")) {
-      try {
-        await deletePedido(id);
-        setPedidosPendientes(pedidosPendientes.filter((pedido) => pedido._id !== id));
-        setPedidosRecibidos(pedidosRecibidos.filter((pedido) => pedido._id !== id));
-        notify("Pedido eliminado con éxito.", "success");
-      } catch (error) {
-        notify("Error al eliminar el pedido.", "error");
-      }
+    if (!window.confirm("¿Estás seguro de que deseas eliminar este pedido?")) return;
+
+    try {
+      await deletePedido(id);
+      setPedidosPendientes((prev) => prev.filter((pedido) => pedido._id !== id));
+      setPedidosRecibidos((prev) => prev.filter((pedido) => pedido._id !== id));
+      notify("Pedido eliminado con éxito.", "success");
+    } catch (error) {
+      notify("Error al eliminar el pedido.", "error");
     }
   };
 
@@ -75,149 +75,153 @@ const PedidosPage = () => {
       notify("Por favor, completa los campos de comentarios y recibido por.", "error");
       return;
     }
-  
+
     try {
       const updatedPedido = { estado: "Recibido", comentarios, recibidoPor };
       const { data } = await updatePedidoStatus(id, updatedPedido);
-  
-      setPedidosPendientes(pedidosPendientes.filter((pedido) => pedido._id !== id));
-      setPedidosRecibidos([...pedidosRecibidos, data]);
-  
+
+      setPedidosPendientes((prev) => prev.filter((pedido) => pedido._id !== id));
+      setPedidosRecibidos((prev) => [...prev, data]);
+
       notify("Pedido marcado como recibido.", "success");
-      setComentarios(""); // Limpiar el campo
-      setRecibidoPor(""); // Limpiar el campo
+      setComentarios("");
+      setRecibidoPor("");
     } catch (error) {
-      console.error(error);
       notify("Error al marcar el pedido como recibido.", "error");
     }
   };
-  
 
   return (
     <div className="p-4 bg-gray-100 min-h-screen">
       <h1 className="text-2xl font-bold mb-4 text-center">Gestión de Pedidos</h1>
 
-      <h2 className="text-xl font-bold mt-8">Pedidos Pendientes</h2>
-      {pedidosPendientes.length === 0 ? (
-        <p className="text-gray-600 text-center">No hay pedidos pendientes.</p>
-      ) : (
-        <ul className="space-y-4">
-          {pedidosPendientes.map((pedido) => (
-            <li key={pedido._id} className="bg-white p-4 rounded-lg shadow-md">
-              <h3 className="font-bold">ID: {new Date(pedido.fecha).toLocaleString()}</h3>
-              <h4 className="mt-2 font-semibold">Productos:</h4>
-              <ul className="list-disc ml-5">
-                {pedido.productos.map((prod, idx) => (
-                  <li key={idx}>
-                    {prod.nombre} - {prod.cantidad} ({prod.tipo})
-                  </li>
-                ))}
-              </ul>
-              <textarea
-                placeholder="Agregar comentarios"
-                className="border p-2 w-full mt-2 rounded-lg"
-                value={comentarios}
-                onChange={(e) => setComentarios(e.target.value)}
-              />
-              <input
-                type="text"
-                placeholder="Recibido por"
-                className="border p-2 w-full mt-2 rounded-lg"
-                value={recibidoPor}
-                onChange={(e) => setRecibidoPor(e.target.value)}
-              />
-              <button
-                onClick={() => handleMarcarPedidoRecibido(pedido._id)}
-                className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 mt-2"
-              >
-                Marcar como Recibido
-              </button>
-              <button
-                onClick={() => handleEliminarPedido(pedido._id)}
-                className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 mt-2 ml-2"
-              >
-                Eliminar Pedido
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <section>
+        <h2 className="text-xl font-bold mt-8">Pedidos Pendientes</h2>
+        {pedidosPendientes.length === 0 ? (
+          <p className="text-gray-600 text-center">No hay pedidos pendientes.</p>
+        ) : (
+          <ul className="space-y-4">
+            {pedidosPendientes.map((pedido) => (
+              <li key={pedido._id} className="bg-white p-4 rounded-lg shadow-md">
+                <h3 className="font-bold">ID: {new Date(pedido.fecha).toLocaleString()}</h3>
+                <h4 className="mt-2 font-semibold">Productos:</h4>
+                <ul className="list-disc ml-5">
+                  {pedido.productos.map((prod, idx) => (
+                    <li key={idx}>
+                      {prod.nombre} - {prod.cantidad} ({prod.tipo})
+                    </li>
+                  ))}
+                </ul>
+                <textarea
+                  placeholder="Agregar comentarios"
+                  className="border p-2 w-full mt-2 rounded-lg"
+                  value={comentarios}
+                  onChange={(e) => setComentarios(e.target.value)}
+                />
+                <input
+                  type="text"
+                  placeholder="Recibido por"
+                  className="border p-2 w-full mt-2 rounded-lg"
+                  value={recibidoPor}
+                  onChange={(e) => setRecibidoPor(e.target.value)}
+                />
+                <button
+                  onClick={() => handleMarcarPedidoRecibido(pedido._id)}
+                  className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 mt-2"
+                >
+                  Marcar como Recibido
+                </button>
+                <button
+                  onClick={() => handleEliminarPedido(pedido._id)}
+                  className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 mt-2 ml-2"
+                >
+                  Eliminar Pedido
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
-      <h2 className="text-xl font-bold mt-8">Pedidos Recibidos</h2>
-      {pedidosRecibidos.length === 0 ? (
-        <p className="text-gray-600 text-center">No hay pedidos recibidos.</p>
-      ) : (
-        <ul className="space-y-4">
-          {pedidosRecibidos.map((pedido) => (
-            <li key={pedido._id} className="bg-white p-4 rounded-lg shadow-md">
-              <h3 className="font-bold">ID: {new Date(pedido.fecha).toLocaleString()}</h3>
-              <p className="italic text-gray-600">Comentarios: {pedido.comentarios || "Ninguno"}</p>
-              <p className="italic text-gray-600">Recibido por: {pedido.recibidoPor || "No especificado"}</p>
-              <h4 className="mt-2 font-semibold">Productos:</h4>
-              <ul className="list-disc ml-5">
-                {pedido.productos.map((prod, idx) => (
-                  <li key={idx}>
-                    {prod.nombre} - {prod.cantidad} ({prod.tipo})
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={() => handleEliminarPedido(pedido._id)}
-                className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 mt-2"
-              >
-                Eliminar Pedido
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <section>
+        <h2 className="text-xl font-bold mt-8">Pedidos Recibidos</h2>
+        {pedidosRecibidos.length === 0 ? (
+          <p className="text-gray-600 text-center">No hay pedidos recibidos.</p>
+        ) : (
+          <ul className="space-y-4">
+            {pedidosRecibidos.map((pedido) => (
+              <li key={pedido._id} className="bg-white p-4 rounded-lg shadow-md">
+                <h3 className="font-bold">ID: {new Date(pedido.fecha).toLocaleString()}</h3>
+                <p className="italic text-gray-600">Comentarios: {pedido.comentarios || "Ninguno"}</p>
+                <p className="italic text-gray-600">Recibido por: {pedido.recibidoPor || "No especificado"}</p>
+                <h4 className="mt-2 font-semibold">Productos:</h4>
+                <ul className="list-disc ml-5">
+                  {pedido.productos.map((prod, idx) => (
+                    <li key={idx}>
+                      {prod.nombre} - {prod.cantidad} ({prod.tipo})
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => handleEliminarPedido(pedido._id)}
+                  className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 mt-2"
+                >
+                  Eliminar Pedido
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
-      <h2 className="text-xl font-bold mt-8">Crear Nuevo Pedido</h2>
-      <div className="bg-white p-4 rounded-lg shadow-md">
-        <h3 className="font-bold">Agregar Producto</h3>
-        <input
-          type="text"
-          placeholder="Nombre del Producto"
-          value={nuevoProducto.nombre}
-          onChange={(e) => setNuevoProducto({ ...nuevoProducto, nombre: e.target.value })}
-          className="border p-2 w-full mb-2 rounded-lg"
-        />
-        <input
-          type="number"
-          placeholder="Cantidad"
-          value={nuevoProducto.cantidad}
-          onChange={(e) => setNuevoProducto({ ...nuevoProducto, cantidad: e.target.value })}
-          className="border p-2 w-full mb-2 rounded-lg"
-        />
-        <input
-          type="text"
-          placeholder="Tipo (unidad, pack, kilo)"
-          value={nuevoProducto.tipo}
-          onChange={(e) => setNuevoProducto({ ...nuevoProducto, tipo: e.target.value })}
-          className="border p-2 w-full mb-2 rounded-lg"
-        />
-        <button
-          onClick={handleAgregarProducto}
-          className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
-        >
-          Agregar Producto
-        </button>
+      <section>
+        <h2 className="text-xl font-bold mt-8">Crear Nuevo Pedido</h2>
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <h3 className="font-bold">Agregar Producto</h3>
+          <input
+            type="text"
+            placeholder="Nombre del Producto"
+            value={nuevoProducto.nombre}
+            onChange={(e) => setNuevoProducto((prev) => ({ ...prev, nombre: e.target.value }))}
+            className="border p-2 w-full mb-2 rounded-lg"
+          />
+          <input
+            type="number"
+            placeholder="Cantidad"
+            value={nuevoProducto.cantidad}
+            onChange={(e) => setNuevoProducto((prev) => ({ ...prev, cantidad: e.target.value }))}
+            className="border p-2 w-full mb-2 rounded-lg"
+          />
+          <input
+            type="text"
+            placeholder="Tipo (unidad, pack, kilo)"
+            value={nuevoProducto.tipo}
+            onChange={(e) => setNuevoProducto((prev) => ({ ...prev, tipo: e.target.value }))}
+            className="border p-2 w-full mb-2 rounded-lg"
+          />
+          <button
+            onClick={handleAgregarProducto}
+            className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
+          >
+            Agregar Producto
+          </button>
 
-        <h3 className="font-bold mt-4">Productos Agregados:</h3>
-        <ul className="list-disc ml-5">
-          {nuevoPedido.productos.map((prod, idx) => (
-            <li key={idx}>
-              {prod.nombre} - {prod.cantidad} ({prod.tipo})
-            </li>
-          ))}
-        </ul>
-        <button
-          onClick={handleCrearPedido}
-          className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 mt-4"
-        >
-          Crear Pedido
-        </button>
-      </div>
+          <h3 className="font-bold mt-4">Productos Agregados:</h3>
+          <ul className="list-disc ml-5">
+            {nuevoPedido.productos.map((prod, idx) => (
+              <li key={idx}>
+                {prod.nombre} - {prod.cantidad} ({prod.tipo})
+              </li>
+            ))}
+          </ul>
+          <button
+            onClick={handleCrearPedido}
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 mt-4"
+          >
+            Crear Pedido
+          </button>
+        </div>
+      </section>
     </div>
   );
 };
